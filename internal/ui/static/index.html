@@ -1,0 +1,38 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>sparql-server</title>
+<link rel="stylesheet" href="ui/app.css">
+</head>
+<body>
+<header><h1>sparql-server</h1><span id="version"></span></header>
+<main>
+<form id="form">
+<label for="query">Query</label>
+<textarea id="query" name="query" rows="12" spellcheck="false">SELECT ?s ?p ?o
+WHERE { ?s ?p ?o }
+LIMIT 25</textarea>
+<div class="row">
+<label>Format
+<select id="format">
+<option value="application/sparql-results+json">table (JSON)</option>
+<option value="text/csv">CSV</option>
+<option value="text/tab-separated-values">TSV</option>
+<option value="application/sparql-results+xml">XML</option>
+<option value="text/turtle">Turtle (CONSTRUCT)</option>
+<option value="application/n-triples">N-Triples (CONSTRUCT)</option>
+</select>
+</label>
+<label>Token <input id="token" type="password" autocomplete="off" placeholder="optional"></label>
+<button type="submit">Run</button>
+<span class="hint">Ctrl+Enter</span>
+</div>
+</form>
+<p id="status" role="status"></p>
+<div id="results"></div>
+</main>
+<script src="ui/app.js"></script>
+</body>
+</html>
