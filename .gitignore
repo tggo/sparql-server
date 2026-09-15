@@ -1,0 +1,5 @@
+/sparql-server
+/dist/
+*.test
+*.out
+/data/
