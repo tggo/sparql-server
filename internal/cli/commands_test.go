@@ -122,6 +122,11 @@ func TestBinarySignal(t *testing.T) {
 	if out, err := build.CombinedOutput(); err != nil {
 		t.Fatalf("build: %v\n%s", err, out)
 	}
+	// A real binary records its dependencies, so the version subcommand must
+	// name the goRDFlib it was linked with (test binaries may not).
+	if out, err := exec.Command(bin, "version").Output(); err != nil || !strings.Contains(string(out), "goRDFlib: v") {
+		t.Errorf("binary version: %v %q", err, out)
+	}
 	store := "sqlite:" + filepath.Join(t.TempDir(), "s.db")
 	dir := dataDir(t)
 
