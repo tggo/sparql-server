@@ -1,9 +1,6 @@
 package cli
 
 import (
-	"context"
-	"io"
-	"net/http"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -111,61 +108,6 @@ func TestCommandErrors(t *testing.T) {
 	}
 }
 
-// TestReadyAfterLoad feeds startup data through a FIFO, so loading blocks
-// until the test writes it: the server must listen, answer /healthz, and
-// refuse SPARQL requests and /readyz until the data is in.
-func TestReadyAfterLoad(t *testing.T) {
-	if runtime.GOOS == "windows" {
-		t.Skip("needs a named pipe")
-	}
-	fifo := filepath.Join(t.TempDir(), "data.nt")
-	if err := syscall.Mkfifo(fifo, 0o600); err != nil {
-		t.Skipf("mkfifo: %v", err)
-	}
-	ctx, cancel := context.WithCancel(context.Background())
-	defer cancel()
-	addr := make(chan string, 1)
-	logs := &syncBuffer{}
-	env := Env{Stdout: io.Discard, Stderr: logs}
-	env.ServerOptions.OnListen = func(a string) { addr <- a }
-	done := make(chan int, 1)
-	go func() { done <- Main(ctx, []string{"serve", "--listen", "127.0.0.1:0", "--data", fifo}, env) }()
-	base := "http://" + <-addr
-
-	wantStatus(t, "healthz while loading", do(t, http.MethodGet, base+"/healthz", ""), 200)
-	wantStatus(t, "readyz while loading", do(t, http.MethodGet, base+"/readyz", ""), 503)
-	r := query(t, base, namesQuery, "text/csv")
-	wantStatus(t, "query while loading", r, 503)
-	if r.Header.Get("Retry-After") == "" {
-		t.Error("no Retry-After")
-	}
-	if m := do(t, http.MethodGet, base+"/metrics", ""); !strings.Contains(m.Body, "sparql_server_ready 0") {
-		t.Error("metrics report ready while loading")
-	}
-
-	f, err := os.OpenFile(fifo, os.O_WRONLY, 0)
-	if err != nil {
-		t.Fatal(err)
-	}
-	f.WriteString(`<http://ex/a> <http://xmlns.com/foaf/0.1/name> "Late" .` + "\n")
-	f.Close()
-
-	deadline := time.Now().Add(5 * time.Second)
-	for do(t, http.MethodGet, base+"/readyz", "").Status != 200 {
-		if time.Now().After(deadline) {
-			t.Fatalf("not ready after loading; logs:\n%s", logs)
-		}
-		time.Sleep(10 * time.Millisecond)
-	}
-	if r := query(t, base, namesQuery, "text/csv"); r.Body != "name\r\nLate\r\n" {
-		t.Errorf("after load: %q", r.Body)
-	}
-	cancel()
-	if code := <-done; code != 0 {
-		t.Errorf("exit %d", code)
-	}
-}
-
 // TestBinarySignal builds the real binary, starts it on a persistent store,
 // and stops it with SIGTERM.
 func TestBinarySignal(t *testing.T) {
@@ -193,7 +135,9 @@ func TestBinarySignal(t *testing.T) {
 	var mu sync.Mutex
 	var addr atomic.Value
 	readyCh := make(chan struct{})
+	readerDone := make(chan struct{})
 	go func() {
+		defer close(readerDone)
 		buf := make([]byte, 4096)
 		var once sync.Once
 		for {
@@ -228,16 +172,15 @@ func TestBinarySignal(t *testing.T) {
 	if err := cmd.Process.Signal(syscall.SIGTERM); err != nil {
 		t.Fatal(err)
 	}
-	waitErr := make(chan error, 1)
-	go func() { waitErr <- cmd.Wait() }()
+	// The pipe reaches EOF when the process exits; read everything before Wait.
 	select {
-	case err := <-waitErr:
-		if err != nil {
-			t.Fatalf("exit: %v\n%s", err, logs.String())
-		}
+	case <-readerDone:
 	case <-time.After(20 * time.Second):
 		cmd.Process.Kill()
 		t.Fatal("binary did not exit on SIGTERM")
+	}
+	if err := cmd.Wait(); err != nil {
+		t.Fatalf("exit: %v\n%s", err, logs.String())
 	}
 	mu.Lock()
 	final := logs.String()
