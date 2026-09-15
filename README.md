@@ -321,8 +321,21 @@ containers, systemd units and shells without adding a parser dependency.
 | `--store` | Persistence | Notes |
 |---|---|---|
 | `memory` | none | fastest; the dataset is gone when the process exits |
-| `badger:/dir` | yes | Badger v4 LSM store; one process at a time; good write throughput |
-| `sqlite:/file.db` | yes | pure-Go SQLite in WAL mode; one file, inspectable with the `sqlite3` CLI |
+| `badger:/dir` | yes | Badger v4 LSM store; one process at a time; **recommended for persistent, query-heavy use** |
+| `sqlite:/file.db` | yes | pure-Go SQLite in WAL mode; one file, inspectable with the `sqlite3` CLI; **much slower for queries** (see below) |
+
+Query throughput on the same test (16 clients, a selective two-pattern query
+over 20 000 triples, Apple M4 Max, loopback, `TestConcurrentQueryThroughput`):
+
+| Store | Requests per second |
+|---|---:|
+| memory | ~28 000 |
+| Badger | ~14 600 |
+| SQLite | ~250 |
+
+Pick memory when the data fits in RAM and can be reloaded at startup, Badger
+when it must persist. Use SQLite only when a single inspectable file matters
+more than query speed.
 
 All three hold the default graph and any number of named graphs in one store.
 A named graph exists while it holds a triple: an emptied graph disappears.
@@ -387,10 +400,8 @@ the ones still running, and closes the store. A second signal exits at once.
   read by a lexical scanner).
 - **Scale.** Bulk loading into Badger or SQLite goes through the generic store
   interface; expect minutes, not seconds, for tens of millions of triples.
-  A small benchmark: 16 concurrent clients running a selective two-pattern
-  query over 20 000 triples reach about 27 000 requests per second on the
-  memory store and 4 700 on Badger (Apple M4 Max, loopback; see
-  `TestConcurrentQueryThroughput`).
+  Query throughput per store is in the [Storage](#storage) table; SQLite is
+  two orders of magnitude slower than memory.
 - **Windows** binaries are built and cross-compiled in CI, but the test suite
   runs on Linux and macOS only.
 - TLS certificates are not reloaded without a restart.

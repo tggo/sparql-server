@@ -6,6 +6,17 @@ All notable changes to this project are documented here. The format follows
 
 ## [Unreleased]
 
+## [0.1.1] - 2026-09-15
+
+### Changed
+
+- Built on goRDFlib v0.5.5. Queries on a Badger store read from one snapshot
+  instead of opening a transaction per lookup: about 3× the throughput
+  (~4 800 → ~14 600 requests per second on the throughput test).
+- README: query throughput for every store, and which store to choose. SQLite
+  is much slower for queries (~250 requests per second on the same test).
+- The throughput test also measures SQLite.
+
 ## [0.1.0] - 2026-09-15
 
 First release, built on goRDFlib v0.5.4 and its `endpoint` package.

@@ -37,7 +37,7 @@ func TestConcurrentQueryThroughput(t *testing.T) {
 		t.Skip("load test")
 	}
 	data := writePeople(t, 10_000)
-	for _, store := range []string{"memory", "badger:" + filepath.Join(t.TempDir(), "b")} {
+	for _, store := range []string{"memory", "sqlite:" + filepath.Join(t.TempDir(), "s.db"), "badger:" + filepath.Join(t.TempDir(), "b")} {
 		kind := strings.SplitN(store, ":", 2)[0]
 		t.Run(kind, func(t *testing.T) {
 			s := start(t, nil, "--store", store, "--data", data, "--access-log=false")

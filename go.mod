@@ -4,7 +4,7 @@ go 1.26
 
 require (
 	github.com/piprate/json-gold v0.8.0
-	github.com/tggo/goRDFlib v0.5.4
+	github.com/tggo/goRDFlib v0.5.5
 )
 
 require (
