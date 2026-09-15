@@ -405,7 +405,7 @@ func NewQueryFlags(q *Query, out io.Writer) *flag.FlagSet {
 	q.Common.register(fs, true)
 	fs.StringVar(&q.Format, "format", "auto", "output format: auto, json, xml, csv, tsv, turtle, ntriples, nquads, trig, jsonld, rdfxml")
 	fs.StringVar(&q.File, "file", "", "read the query from this file (- for stdin)")
-	durationFlag(fs, &q.Timeout, "timeout", 0, "time limit for the query (0 = none)")
+	durationFlag(fs, &q.Timeout, "query-timeout", 0, "time limit for the query (0 = none)")
 	return fs
 }
 
@@ -449,7 +449,7 @@ func (q *Query) Validate(args []string, stdin io.Reader, readFile func(string) (
 		errs = append(errs, errors.New("the query is empty"))
 	}
 	if q.Timeout < 0 {
-		errs = append(errs, errors.New("timeout must not be negative"))
+		errs = append(errs, errors.New("query-timeout must not be negative"))
 	}
 	return errors.Join(errs...)
 }
