@@ -1,0 +1,78 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+permissions:
+  contents: read
+
+jobs:
+  test:
+    strategy:
+      fail-fast: false
+      matrix:
+        # Windows is cross-compiled below but its tests are not run: the
+        # end-to-end tests rely on POSIX signals and file semantics.
+        os: [ubuntu-latest, macos-latest]
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+
+      - name: Vet
+        run: go vet ./...
+
+      - name: Check formatting
+        if: runner.os == 'Linux'
+        run: test -z "$(gofmt -l .)"
+
+      - name: Test
+        run: go test -count=1 -timeout 600s ./...
+
+      - name: Test with the race detector
+        if: runner.os == 'Linux'
+        run: go test -race -count=1 -timeout 600s ./...
+
+      - name: Build
+        run: go build -trimpath -o dist/ ./cmd/sparql-server
+
+      - name: Cross-compile for Windows
+        if: runner.os == 'Linux'
+        run: |
+          GOOS=windows GOARCH=amd64 go build -o /dev/null ./cmd/sparql-server
+          GOOS=windows GOARCH=amd64 go vet ./...
+
+  docker:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: docker/setup-buildx-action@v3
+
+      - name: Build image
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          load: true
+          tags: sparql-server:ci
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+      - name: Smoke test
+        run: |
+          docker run -d --name sparql -p 8080:8080 -v "$PWD/examples:/examples:ro" \
+            -e SPARQL_SERVER_DATA=/examples sparql-server:ci
+          for i in $(seq 1 30); do
+            curl -sf http://localhost:8080/readyz && break
+            sleep 1
+          done
+          curl -sf http://localhost:8080/sparql -H 'Accept: text/csv' \
+            --data-urlencode 'query=SELECT (COUNT(*) AS ?n) WHERE { ?s ?p ?o }' | tee /dev/stderr | grep -q '^14'
+          docker stop sparql
+          test "$(docker inspect sparql --format '{{.State.ExitCode}}')" = 0
