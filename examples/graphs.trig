@@ -1,0 +1,6 @@
+@prefix ex:  <http://example.org/> .
+@prefix dct: <http://purl.org/dc/terms/> .
+
+ex:catalog { ex:book1 dct:title "Weaving the Web" ; dct:creator ex:timbl . }
+
+ex:reviews { ex:book1 ex:rating 5 . }
