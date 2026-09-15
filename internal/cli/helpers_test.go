@@ -88,7 +88,10 @@ func start(t testing.TB, environ []string, args ...string) *testServer {
 		cancel()
 		t.Fatalf("server did not listen; logs:\n%s", s.logs)
 	}
-	deadline := time.Now().Add(10 * time.Second)
+	// Readiness waits for the startup load. Loading 20 000 triples into SQLite
+	// took over 10 s on a CI runner, so the deadline is generous; a healthy
+	// start returns as soon as /readyz does.
+	deadline := time.Now().Add(90 * time.Second)
 	for {
 		resp, err := http.Get(s.URL + "/readyz")
 		if err == nil {
