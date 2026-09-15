@@ -1,0 +1,29 @@
+# A persistent sparql-server with the example data.
+#
+#   echo "SPARQL_UPDATE_TOKEN=$(openssl rand -hex 32)" > .env
+#   docker compose up -d
+#   curl -s http://localhost:8080/sparql --data-urlencode 'query=SELECT * { ?s ?p ?o } LIMIT 5'
+#
+# The example files are loaded on every start. Triples are deduplicated, but
+# for real data run `sparql-server load` once instead of using --data.
+services:
+  sparql:
+    build: .
+    image: sparql-server:local
+    ports:
+      - "8080:8080"
+    environment:
+      SPARQL_SERVER_STORE: badger:/data/badger
+      SPARQL_SERVER_DATA: /examples
+      SPARQL_SERVER_UPDATE_TOKEN: ${SPARQL_UPDATE_TOKEN:?set SPARQL_UPDATE_TOKEN in .env}
+      SPARQL_SERVER_LOG_FORMAT: json
+      SPARQL_SERVER_QUERY_TIMEOUT: 30s
+    volumes:
+      - sparql-data:/data
+      - ./examples:/examples:ro
+    restart: unless-stopped
+    # SIGTERM starts a graceful shutdown (30s drain by default); allow for it.
+    stop_grace_period: 40s
+
+volumes:
+  sparql-data:
