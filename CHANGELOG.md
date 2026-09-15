@@ -46,5 +46,6 @@ First release, built on goRDFlib v0.5.4 and its `endpoint` package.
 - Dockerfile (distroless, non-root), docker-compose example, goreleaser
   configuration, CI and release workflows.
 
-[Unreleased]: https://github.com/tggo/sparql-server/compare/v0.1.0...HEAD
+[Unreleased]: https://github.com/tggo/sparql-server/compare/v0.1.1...HEAD
+[0.1.1]: https://github.com/tggo/sparql-server/compare/v0.1.0...v0.1.1
 [0.1.0]: https://github.com/tggo/sparql-server/releases/tag/v0.1.0
